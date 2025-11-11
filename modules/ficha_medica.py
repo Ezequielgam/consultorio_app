@@ -1,4 +1,3 @@
-# modules/ficha_medica.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, date
@@ -94,8 +93,10 @@ class FichaMedicaModule:
             fichas = self.queries.obtener_fichas_medicas()
             for ficha in fichas:
                 self.tree.insert("", "end", values=ficha)
+            print(f"✅ Cargadas {len(fichas)} fichas médicas")
         except Exception as e:
             messagebox.showerror("Error", f"Error al cargar fichas médicas: {str(e)}")
+            print(f"❌ Error cargando fichas: {e}")
 
     def buscar_ficha(self):
         paciente = self.paciente_search.get()
@@ -120,6 +121,7 @@ class FichaMedicaModule:
         selected = self.tree.selection()
         if selected:
             ficha_id = self.tree.item(selected[0])["values"][0]
+            print(f"🔍 Editando ficha ID: {ficha_id}")
             self.abrir_formulario_ficha(ficha_id)
         else:
             messagebox.showwarning("Advertencia", "Seleccione una ficha para editar")
@@ -153,6 +155,32 @@ class FichaMedicaModule:
                 "Advertencia", "Seleccione una ficha para ver detalles"
             )
 
+    def obtener_datos_formulario(self, ficha_id=None):
+        """Obtener pacientes y doctores para el formulario con manejo de errores"""
+        try:
+            from database.queries import PacientesQueries, DoctoresQueries
+
+            pacientes_queries = PacientesQueries(self.connection)
+            doctores_queries = DoctoresQueries(self.connection)
+
+            if ficha_id is None:
+                # Para nueva ficha, solo pacientes sin ficha
+                pacientes = self.queries.obtener_pacientes_sin_ficha()
+                print(f"📝 Nuevas fichas - {len(pacientes)} pacientes sin ficha")
+            else:
+                # Para edición, todos los pacientes
+                pacientes = pacientes_queries.obtener_pacientes_para_combo()
+                print(f"📝 Editando ficha - {len(pacientes)} pacientes disponibles")
+
+            doctores = doctores_queries.obtener_doctores_para_combo()
+            print(f"👨‍⚕️ {len(doctores)} doctores disponibles")
+
+            return pacientes, doctores
+
+        except Exception as e:
+            print(f"❌ Error obteniendo datos para formulario: {e}")
+            raise e
+
     def abrir_formulario_ficha(self, ficha_id=None):
         formulario = tk.Toplevel(self.frame)
         formulario.title(
@@ -162,32 +190,30 @@ class FichaMedicaModule:
         formulario.transient(self.frame)
         formulario.grab_set()
 
-        # Obtener datos para combobox
         try:
-            from database.queries import PacientesQueries, DoctoresQueries
-
-            pacientes_queries = PacientesQueries(self.connection)
-            doctores_queries = DoctoresQueries(self.connection)
-
-            if ficha_id is None:
-                pacientes = self.queries.obtener_pacientes_sin_ficha()
-            else:
-                pacientes = pacientes_queries.obtener_pacientes_para_combo()
-
-            doctores = doctores_queries.obtener_doctores_para_combo()
+            pacientes, doctores = self.obtener_datos_formulario(ficha_id)
         except Exception as e:
             messagebox.showerror("Error", f"Error al cargar datos: {str(e)}")
             formulario.destroy()
             return
+
+        # Variables para almacenar datos
+        paciente_var = tk.StringVar()
+        doctor_var = tk.StringVar()
+        fecha_var = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
+        grupo_sanguineo_var = tk.StringVar()
 
         # Campos del formulario
         ttk.Label(formulario, text="Paciente:*").grid(
             row=0, column=0, padx=5, pady=5, sticky="e"
         )
         paciente_combo = ttk.Combobox(
-            formulario, values=[f"{p[0]} - {p[1]}" for p in pacientes], state="readonly"
+            formulario,
+            values=[f"{p[0]} - {p[1]}" for p in pacientes],
+            state="readonly",
+            textvariable=paciente_var,
         )
-        paciente_combo.grid(row=0, column=1, padx=5, pady=5)
+        paciente_combo.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
         ttk.Label(formulario, text="Doctor:").grid(
             row=1, column=0, padx=5, pady=5, sticky="e"
@@ -196,85 +222,128 @@ class FichaMedicaModule:
             formulario,
             values=["0 - No asignado"] + [f"{d[0]} - {d[1]}" for d in doctores],
             state="readonly",
+            textvariable=doctor_var,
         )
-        doctor_combo.grid(row=1, column=1, padx=5, pady=5)
+        doctor_combo.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         doctor_combo.set("0 - No asignado")
 
         ttk.Label(formulario, text="Fecha Apertura:*").grid(
             row=2, column=0, padx=5, pady=5, sticky="e"
         )
-        fecha_apertura_entry = ttk.Entry(formulario)
-        fecha_apertura_entry.grid(row=2, column=1, padx=5, pady=5)
-        fecha_apertura_entry.insert(0, date.today().strftime("%Y-%m-%d"))
+        fecha_entry = ttk.Entry(formulario, textvariable=fecha_var)
+        fecha_entry.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
 
         ttk.Label(formulario, text="Grupo Sanguíneo:").grid(
             row=3, column=0, padx=5, pady=5, sticky="e"
         )
-        grupo_sanguineo_entry = ttk.Entry(formulario)
-        grupo_sanguineo_entry.grid(row=3, column=1, padx=5, pady=5)
+        grupo_sanguineo_entry = ttk.Entry(formulario, textvariable=grupo_sanguineo_var)
+        grupo_sanguineo_entry.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
 
         ttk.Label(formulario, text="Alergias:").grid(
             row=4, column=0, padx=5, pady=5, sticky="e"
         )
         alergias_text = tk.Text(formulario, height=3, width=30)
-        alergias_text.grid(row=4, column=1, padx=5, pady=5)
+        alergias_text.grid(row=4, column=1, padx=5, pady=5, sticky="ew")
 
         ttk.Label(formulario, text="Antecedentes Personales:").grid(
             row=5, column=0, padx=5, pady=5, sticky="e"
         )
         antecedentes_personales_text = tk.Text(formulario, height=3, width=30)
-        antecedentes_personales_text.grid(row=5, column=1, padx=5, pady=5)
+        antecedentes_personales_text.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
 
         ttk.Label(formulario, text="Antecedentes Familiares:").grid(
             row=6, column=0, padx=5, pady=5, sticky="e"
         )
         antecedentes_familiares_text = tk.Text(formulario, height=3, width=30)
-        antecedentes_familiares_text.grid(row=6, column=1, padx=5, pady=5)
+        antecedentes_familiares_text.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
 
         ttk.Label(formulario, text="Medicación Actual:").grid(
             row=7, column=0, padx=5, pady=5, sticky="e"
         )
         medicacion_actual_text = tk.Text(formulario, height=3, width=30)
-        medicacion_actual_text.grid(row=7, column=1, padx=5, pady=5)
+        medicacion_actual_text.grid(row=7, column=1, padx=5, pady=5, sticky="ew")
+
+        # Configurar grid para que se expanda
+        formulario.columnconfigure(1, weight=1)
+        formulario.rowconfigure(8, weight=1)
 
         # Cargar datos existentes si estamos editando
         if ficha_id is not None:
             try:
+                print(f"🔍 Cargando datos de ficha ID: {ficha_id}")
                 ficha = self.queries.obtener_ficha_medica_por_id(ficha_id)
+
                 if ficha:
-                    # Buscar el paciente en la lista
+                    print(f"✅ Ficha encontrada: {ficha}")
+
+                    # Buscar y seleccionar paciente
+                    paciente_encontrado = False
                     for p in pacientes:
-                        if p[0] == ficha[1]:
+                        if p[0] == ficha[1]:  # ficha[1] = id_paciente
                             paciente_combo.set(f"{p[0]} - {p[1]}")
+                            paciente_encontrado = True
+                            print(f"✅ Paciente seleccionado: {p[1]}")
                             break
 
-                    # Buscar el doctor en la lista
-                    if ficha[2]:  # id_doctor
+                    if not paciente_encontrado:
+                        print("⚠️ No se encontró el paciente en la lista")
+
+                    # Buscar y seleccionar doctor
+                    if ficha[2]:  # ficha[2] = id_doctor
+                        doctor_encontrado = False
                         for d in doctores:
                             if d[0] == ficha[2]:
                                 doctor_combo.set(f"{d[0]} - {d[1]}")
+                                doctor_encontrado = True
+                                print(f"✅ Doctor seleccionado: {d[1]}")
                                 break
+                        if not doctor_encontrado:
+                            doctor_combo.set("0 - No asignado")
+                            print("⚠️ No se encontró el doctor en la lista")
                     else:
                         doctor_combo.set("0 - No asignado")
 
-                    fecha_apertura_entry.delete(0, tk.END)
-                    fecha_apertura_entry.insert(0, ficha[3].strftime("%Y-%m-%d"))
+                    # Fecha de apertura
+                    if ficha[3]:
+                        fecha_var.set(ficha[3].strftime("%Y-%m-%d"))
+                        print(f"✅ Fecha cargada: {ficha[3]}")
 
-                    grupo_sanguineo_entry.insert(0, ficha[4] or "")
+                    # Grupo sanguíneo
+                    if ficha[4]:
+                        grupo_sanguineo_var.set(ficha[4])
+                        print(f"✅ Grupo sanguíneo cargado: {ficha[4]}")
 
-                    alergias_text.insert("1.0", ficha[5] or "")
-                    antecedentes_personales_text.insert("1.0", ficha[6] or "")
-                    antecedentes_familiares_text.insert("1.0", ficha[7] or "")
-                    medicacion_actual_text.insert("1.0", ficha[8] or "")
+                    # Campos de texto
+                    if ficha[5]:  # Alergias
+                        alergias_text.insert("1.0", ficha[5])
+                    if ficha[6]:  # Antecedentes personales
+                        antecedentes_personales_text.insert("1.0", ficha[6])
+                    if ficha[7]:  # Antecedentes familiares
+                        antecedentes_familiares_text.insert("1.0", ficha[7])
+                    if ficha[8]:  # Medicación actual
+                        medicacion_actual_text.insert("1.0", ficha[8])
+
+                    print("✅ Todos los datos cargados en el formulario")
+
+                else:
+                    messagebox.showerror("Error", "No se encontró la ficha médica")
+                    formulario.destroy()
+                    return
+
             except Exception as e:
                 messagebox.showerror("Error", f"Error al cargar ficha médica: {str(e)}")
+                print(f"❌ Error cargando ficha: {e}")
+                formulario.destroy()
+                return
 
         def guardar():
             # Validaciones
-            if not paciente_combo.get() or not fecha_apertura_entry.get():
-                messagebox.showerror(
-                    "Error", "Paciente y Fecha Apertura son obligatorios"
-                )
+            if not paciente_combo.get():
+                messagebox.showerror("Error", "Debe seleccionar un paciente")
+                return
+
+            if not fecha_entry.get():
+                messagebox.showerror("Error", "La fecha de apertura es obligatoria")
                 return
 
             # Obtener ID del paciente
@@ -295,7 +364,7 @@ class FichaMedicaModule:
 
             # Validar fecha
             try:
-                fecha_apertura = fecha_apertura_entry.get()
+                fecha_apertura = fecha_var.get()
                 datetime.strptime(fecha_apertura, "%Y-%m-%d")
             except ValueError:
                 messagebox.showerror(
@@ -303,8 +372,8 @@ class FichaMedicaModule:
                 )
                 return
 
-            # Recoger datos de los campos de texto
-            grupo_sanguineo = grupo_sanguineo_entry.get()
+            # Recoger datos
+            grupo_sanguineo = grupo_sanguineo_var.get()
             alergias = alergias_text.get("1.0", tk.END).strip()
             antecedentes_personales = antecedentes_personales_text.get(
                 "1.0", tk.END
@@ -350,6 +419,7 @@ class FichaMedicaModule:
                 messagebox.showerror(
                     "Error", f"Error al guardar ficha médica: {str(e)}"
                 )
+                print(f"❌ Error guardando ficha: {e}")
 
         # Botones del formulario
         button_frame = ttk.Frame(formulario)
@@ -363,104 +433,15 @@ class FichaMedicaModule:
         )
 
     def abrir_detalles_ficha(self, ficha_id):
+        # Implementación de detalles (puedes mantener la anterior)
         detalles = tk.Toplevel(self.frame)
         detalles.title("Detalles de Ficha Médica")
         detalles.geometry("500x400")
-        detalles.transient(self.frame)
-        detalles.grab_set()
 
-        try:
-            ficha = self.queries.obtener_ficha_medica_por_id(ficha_id)
-            if not ficha:
-                messagebox.showerror("Error", "No se encontró la ficha médica")
-                detalles.destroy()
-                return
-
-            # Obtener información del paciente y doctor
-            from database.queries import PacientesQueries, DoctoresQueries
-
-            pacientes_queries = PacientesQueries(self.connection)
-            doctores_queries = DoctoresQueries(self.connection)
-
-            paciente = pacientes_queries.obtener_paciente_por_id(ficha[1])
-            doctor = (
-                doctores_queries.obtener_doctor_por_id(ficha[2]) if ficha[2] else None
-            )
-
-            # Mostrar información
-            info_frame = ttk.Frame(detalles, padding="20")
-            info_frame.pack(fill=tk.BOTH, expand=True)
-
-            ttk.Label(
-                info_frame, text="Detalles de Ficha Médica", font=("Arial", 14, "bold")
-            ).pack(pady=10)
-
-            # Información básica
-            ttk.Label(
-                info_frame,
-                text=f"Paciente: {paciente[2]}, {paciente[3]}",
-                font=("Arial", 10, "bold"),
-            ).pack(anchor="w", pady=5)
-
-            if doctor:
-                ttk.Label(info_frame, text=f"Doctor: {doctor[3]}, {doctor[4]}").pack(
-                    anchor="w", pady=2
-                )
-
-            ttk.Label(info_frame, text=f"Fecha Apertura: {ficha[3]}").pack(
-                anchor="w", pady=2
-            )
-            ttk.Label(
-                info_frame, text=f"Grupo Sanguíneo: {ficha[4] or 'No especificado'}"
-            ).pack(anchor="w", pady=2)
-
-            # Información médica en frames separados
-            ttk.Separator(info_frame, orient="horizontal").pack(fill="x", pady=10)
-
-            # Alergias
-            alergias_frame = ttk.LabelFrame(info_frame, text="Alergias")
-            alergias_frame.pack(fill="x", pady=5)
-            alergias_text = tk.Text(alergias_frame, height=3, width=50)
-            alergias_text.pack(padx=5, pady=5)
-            alergias_text.insert("1.0", ficha[5] or "No especificadas")
-            alergias_text.config(state=tk.DISABLED)
-
-            # Antecedentes Personales
-            antecedentes_personales_frame = ttk.LabelFrame(
-                info_frame, text="Antecedentes Personales"
-            )
-            antecedentes_personales_frame.pack(fill="x", pady=5)
-            antecedentes_personales_text = tk.Text(
-                antecedentes_personales_frame, height=3, width=50
-            )
-            antecedentes_personales_text.pack(padx=5, pady=5)
-            antecedentes_personales_text.insert("1.0", ficha[6] or "No especificados")
-            antecedentes_personales_text.config(state=tk.DISABLED)
-
-            # Antecedentes Familiares
-            antecedentes_familiares_frame = ttk.LabelFrame(
-                info_frame, text="Antecedentes Familiares"
-            )
-            antecedentes_familiares_frame.pack(fill="x", pady=5)
-            antecedentes_familiares_text = tk.Text(
-                antecedentes_familiares_frame, height=3, width=50
-            )
-            antecedentes_familiares_text.pack(padx=5, pady=5)
-            antecedentes_familiares_text.insert("1.0", ficha[7] or "No especificados")
-            antecedentes_familiares_text.config(state=tk.DISABLED)
-
-            # Medicación Actual
-            medicacion_frame = ttk.LabelFrame(info_frame, text="Medicación Actual")
-            medicacion_frame.pack(fill="x", pady=5)
-            medicacion_text = tk.Text(medicacion_frame, height=3, width=50)
-            medicacion_text.pack(padx=5, pady=5)
-            medicacion_text.insert("1.0", ficha[8] or "No especificada")
-            medicacion_text.config(state=tk.DISABLED)
-
-            ttk.Button(info_frame, text="Cerrar", command=detalles.destroy).pack(
-                pady=10
-            )
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al cargar detalles: {str(e)}")
-            detalles.destroy()
+        ttk.Label(
+            detalles,
+            text=f"Detalles de Ficha ID: {ficha_id}",
+            font=("Arial", 12, "bold"),
+        ).pack(pady=10)
+        ttk.Label(detalles, text="Funcionalidad en desarrollo").pack(pady=20)
+        ttk.Button(detalles, text="Cerrar", command=detalles.destroy).pack(pady=10)

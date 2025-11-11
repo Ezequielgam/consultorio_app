@@ -3,18 +3,23 @@ class PacientesQueries:
     def __init__(self, connection):
         self.connection = connection
 
-    def obtener_pacientes(self):
+    def obtener_pacientes_para_combo(self):
+        """Obtener pacientes para combobox (id, nombre_completo)"""
         query = """
-        SELECT 
-            p.id_paciente, 
-            p.dni, 
-            p.apellido, 
-            p.nombre, 
-            p.telefono, 
-            p.correo_electronico, 
-            p.fecha_de_nacimiento, 
-            p.direccion,
-            COALESCE(os.nombre, 'Particular') as obra_social
+        SELECT id_paciente, CONCAT(apellido, ', ', nombre) as nombre_completo
+        FROM Paciente
+        ORDER BY apellido, nombre
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        return cursor.fetchall()
+
+    def obtener_pacientes(self):
+        """Obtener todos los pacientes con información completa"""
+        query = """
+        SELECT p.id_paciente, p.dni, p.apellido, p.nombre, p.telefono, 
+               p.correo_electronico, p.fecha_de_nacimiento, p.direccion,
+               COALESCE(os.nombre, 'Particular') as obra_social
         FROM Paciente p
         LEFT JOIN ObraSocial os ON p.id_obra_social = os.id_obra_social
         ORDER BY p.apellido, p.nombre
@@ -23,30 +28,8 @@ class PacientesQueries:
         cursor.execute(query)
         return cursor.fetchall()
 
-    def buscar_paciente_por_dni(self, dni):
-        """Buscar paciente por DNI - VERSIÓN CORREGIDA"""
-        query = """
-        SELECT 
-            p.id_paciente, 
-            p.dni, 
-            p.apellido, 
-            p.nombre, 
-            p.telefono, 
-            p.correo_electronico, 
-            p.fecha_de_nacimiento, 
-            p.direccion,
-            COALESCE(os.nombre, 'Particular') as obra_social
-        FROM Paciente p
-        LEFT JOIN ObraSocial os ON p.id_obra_social = os.id_obra_social
-        WHERE p.dni LIKE %s
-        ORDER BY p.apellido, p.nombre
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(query, (f"%{dni}%",))
-        return cursor.fetchall()
-
     def obtener_paciente_por_id(self, paciente_id):
-        """Obtener paciente por ID"""
+        """Obtener un paciente específico por ID"""
         query = """
         SELECT id_paciente, dni, apellido, nombre, telefono, 
                correo_electronico, fecha_de_nacimiento, direccion, id_obra_social
@@ -56,6 +39,21 @@ class PacientesQueries:
         cursor = self.connection.cursor()
         cursor.execute(query, (paciente_id,))
         return cursor.fetchone()
+
+    def buscar_paciente_por_dni(self, dni):
+        """Buscar paciente por DNI"""
+        query = """
+        SELECT p.id_paciente, p.dni, p.apellido, p.nombre, p.telefono, 
+               p.correo_electronico, p.fecha_de_nacimiento, p.direccion,
+               COALESCE(os.nombre, 'Particular') as obra_social
+        FROM Paciente p
+        LEFT JOIN ObraSocial os ON p.id_obra_social = os.id_obra_social
+        WHERE p.dni LIKE %s
+        ORDER BY p.apellido, p.nombre
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(query, (f"%{dni}%",))
+        return cursor.fetchall()
 
     def insertar_paciente(self, datos_paciente):
         """Insertar nuevo paciente"""
@@ -110,28 +108,16 @@ class PacientesQueries:
             self.connection.rollback()
             return False
 
-
-def obtener_pacientes_para_combo(self):
-    """Obtener pacientes para combobox (id, nombre_completo)"""
-    query = """
-    SELECT id_paciente, CONCAT(apellido, ', ', nombre) as nombre_completo
-    FROM Paciente
-    ORDER BY apellido, nombre
-    """
-    cursor = self.connection.cursor()
-    cursor.execute(query)
-    return cursor.fetchall()
-
-
-def obtener_obras_sociales(self):
-    query = """
+    def obtener_obras_sociales(self):
+        """Obtener todas las obras sociales"""
+        query = """
         SELECT id_obra_social, nombre
         FROM ObraSocial
         ORDER BY nombre
         """
-    cursor = self.connection.cursor()
-    cursor.execute(query)
-    return cursor.fetchall()
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        return cursor.fetchall()
 
 
 class TurnosQueries:
@@ -257,7 +243,19 @@ class DoctoresQueries:
     def __init__(self, connection):
         self.connection = connection
 
+    def obtener_doctores_para_combo(self):
+        """Obtener doctores para combobox (id, nombre_completo)"""
+        query = """
+        SELECT id_doctor, CONCAT(apellido, ', ', nombre) as nombre_completo
+        FROM Doctor
+        ORDER BY apellido, nombre
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        return cursor.fetchall()
+
     def obtener_doctores(self):
+        """Obtener todos los doctores"""
         query = """
         SELECT id_doctor, dni, matricula, apellido, nombre, telefono, 
                correo_electronico, especialidad
@@ -268,31 +266,8 @@ class DoctoresQueries:
         cursor.execute(query)
         return cursor.fetchall()
 
-    def buscar_doctor_por_dni(self, dni):
-        query = """
-        SELECT id_doctor, dni, matricula, apellido, nombre, telefono, 
-               correo_electronico, especialidad
-        FROM Doctor
-        WHERE dni LIKE %s
-        ORDER BY apellido, nombre
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(query, (f"%{dni}%",))
-        return cursor.fetchall()
-
-    def buscar_doctor_por_apellido(self, apellido):
-        query = """
-        SELECT id_doctor, dni, matricula, apellido, nombre, telefono, 
-               correo_electronico, especialidad
-        FROM Doctor
-        WHERE apellido LIKE %s
-        ORDER BY apellido, nombre
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(query, (f"%{apellido}%",))
-        return cursor.fetchall()
-
     def obtener_doctor_por_id(self, doctor_id):
+        """Obtener un doctor específico por ID"""
         query = """
         SELECT id_doctor, dni, matricula, apellido, nombre, telefono, 
                correo_electronico, especialidad
@@ -304,6 +279,7 @@ class DoctoresQueries:
         return cursor.fetchone()
 
     def insertar_doctor(self, datos_doctor):
+        """Insertar nuevo doctor"""
         query = """
         INSERT INTO Doctor (dni, matricula, apellido, nombre, telefono, 
                           correo_electronico, especialidad)
@@ -319,6 +295,7 @@ class DoctoresQueries:
             raise e
 
     def actualizar_doctor(self, doctor_id, datos_doctor):
+        """Actualizar doctor existente"""
         query = """
         UPDATE Doctor 
         SET dni = %s, matricula = %s, apellido = %s, nombre = %s, 
@@ -335,7 +312,8 @@ class DoctoresQueries:
             raise e
 
     def eliminar_doctor(self, doctor_id):
-        # Verificar si el doctor tiene turnos asignados
+        """Eliminar doctor con verificación"""
+        # Verificar si el doctor tiene turnos
         query_check = "SELECT COUNT(*) FROM Turno WHERE id_doctor = %s"
         cursor = self.connection.cursor()
         cursor.execute(query_check, (doctor_id,))
@@ -352,16 +330,6 @@ class DoctoresQueries:
         except Exception as e:
             self.connection.rollback()
             return False, f"Error al eliminar doctor: {str(e)}"
-
-    def obtener_doctores_para_combo(self):
-        query = """
-        SELECT id_doctor, CONCAT(apellido, ', ', nombre) as nombre_completo
-        FROM Doctor
-        ORDER BY apellido, nombre
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(query)
-        return cursor.fetchall()
 
 
 class LoginQueries:
@@ -623,7 +591,7 @@ class FichaMedicaQueries:
         query = """
         SELECT f.id_ficha_medica, p.id_paciente,
                CONCAT(p.apellido, ', ', p.nombre) as paciente,
-               CONCAT(d.apellido, ', ', d.nombre) as doctor,
+               COALESCE(CONCAT(d.apellido, ', ', d.nombre), 'No asignado') as doctor,
                f.fecha_apertura, f.grupo_sanguineo
         FROM FichaMedica f
         JOIN Paciente p ON f.id_paciente = p.id_paciente
@@ -645,7 +613,9 @@ class FichaMedicaQueries:
         """
         cursor = self.connection.cursor()
         cursor.execute(query, (ficha_id,))
-        return cursor.fetchone()
+        resultado = cursor.fetchone()
+        print(f"🔍 Query ficha ID {ficha_id}: {resultado}")  # Debug
+        return resultado
 
     def obtener_ficha_medica_por_paciente(self, paciente_id):
         """Obtener ficha médica por ID de paciente"""
