@@ -1,4 +1,7 @@
 # database/queries.py
+from mysql.connector import Error
+
+
 class PacientesQueries:
     def __init__(self, connection):
         self.connection = connection
@@ -701,3 +704,270 @@ class FichaMedicaQueries:
         cursor = self.connection.cursor()
         cursor.execute(query)
         return cursor.fetchall()
+
+
+from mysql.connector import Error
+
+
+class ConsultaMedicaQueries:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def obtener_consultas_por_ficha(self, ficha_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT id_consulta, fecha_consulta, diagnostico, tratamiento
+                FROM ConsultaMedica
+                WHERE id_ficha_medica = %s
+                ORDER BY fecha_consulta DESC
+            """,
+                (ficha_id,),
+            )
+            return cursor.fetchall()
+        except Error as e:
+            print(f"❌ Error al obtener consultas: {e}")
+            return []
+
+    def insertar_consulta(self, datos):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO ConsultaMedica (id_ficha_medica, fecha_consulta, diagnostico, tratamiento, observaciones)
+                VALUES (%s, %s, %s, %s, %s)
+            """,
+                datos,
+            )
+            self.conn.commit()
+            return cursor.lastrowid
+        except Error as e:
+            print(f"❌ Error al insertar consulta: {e}")
+            self.conn.rollback()
+            return None
+
+    def obtener_consulta_por_id(self, consulta_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT id_consulta, id_ficha_medica, fecha_consulta, diagnostico, tratamiento, observaciones
+                FROM ConsultaMedica
+                WHERE id_consulta = %s
+            """,
+                (consulta_id,),
+            )
+            return cursor.fetchone()
+        except Error as e:
+            print(f"❌ Error al obtener consulta por id: {e}")
+            return None
+
+    def actualizar_consulta(self, consulta_id, datos):
+        # datos = (fecha, diagnostico, tratamiento, observaciones)
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                UPDATE ConsultaMedica
+                SET fecha_consulta = %s,
+                    diagnostico = %s,
+                    tratamiento = %s,
+                    observaciones = %s
+                WHERE id_consulta = %s
+            """,
+                (*datos, consulta_id),
+            )
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"❌ Error al actualizar consulta: {e}")
+            self.conn.rollback()
+            return False
+
+    def eliminar_consulta(self, consulta_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                "DELETE FROM ConsultaMedica WHERE id_consulta = %s", (consulta_id,)
+            )
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"❌ Error al eliminar consulta: {e}")
+            self.conn.rollback()
+            return False
+
+
+class RecetaMedicaQueries:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def obtener_recetas_por_consulta(self, consulta_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT id_receta, medicamento, dosis, frecuencia, duracion
+                FROM RecetaMedica
+                WHERE id_consulta = %s
+                ORDER BY id_receta DESC
+            """,
+                (consulta_id,),
+            )
+            return cursor.fetchall()
+        except Error as e:
+            print(f"❌ Error al obtener recetas: {e}")
+            return []
+
+    def insertar_receta(self, datos):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO RecetaMedica (id_consulta, medicamento, dosis, frecuencia, duracion)
+                VALUES (%s, %s, %s, %s, %s)
+            """,
+                datos,
+            )
+            self.conn.commit()
+            return cursor.lastrowid
+        except Error as e:
+            print(f"❌ Error al insertar receta: {e}")
+            self.conn.rollback()
+            return None
+
+    def obtener_receta_por_id(self, receta_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT id_receta, id_consulta, medicamento, dosis, frecuencia, duracion
+                FROM RecetaMedica
+                WHERE id_receta = %s
+            """,
+                (receta_id,),
+            )
+            return cursor.fetchone()
+        except Error as e:
+            print(f"❌ Error al obtener receta por id: {e}")
+            return None
+
+    def actualizar_receta(self, receta_id, datos):
+        # datos = (medicamento, dosis, frecuencia, duracion)
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                UPDATE RecetaMedica
+                SET medicamento=%s, dosis=%s, frecuencia=%s, duracion=%s
+                WHERE id_receta = %s
+            """,
+                (*datos, receta_id),
+            )
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"❌ Error al actualizar receta: {e}")
+            self.conn.rollback()
+            return False
+
+    def eliminar_receta(self, receta_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                "DELETE FROM RecetaMedica WHERE id_receta = %s", (receta_id,)
+            )
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"❌ Error al eliminar receta: {e}")
+            self.conn.rollback()
+            return False
+
+
+class EstudioMedicoQueries:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def obtener_estudios_por_consulta(self, consulta_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT id_estudio, tipo_estudio, fecha_estudio, resultados
+                FROM EstudioMedico
+                WHERE id_consulta = %s
+                ORDER BY fecha_estudio DESC
+            """,
+                (consulta_id,),
+            )
+            return cursor.fetchall()
+        except Error as e:
+            print(f"❌ Error al obtener estudios: {e}")
+            return []
+
+    def insertar_estudio(self, datos):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO EstudioMedico (id_consulta, tipo_estudio, fecha_estudio, resultados)
+                VALUES (%s, %s, %s, %s)
+            """,
+                datos,
+            )
+            self.conn.commit()
+            return cursor.lastrowid
+        except Error as e:
+            print(f"❌ Error al insertar estudio: {e}")
+            self.conn.rollback()
+            return None
+
+    def obtener_estudio_por_id(self, estudio_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT id_estudio, id_consulta, tipo_estudio, fecha_estudio, resultados
+                FROM EstudioMedico
+                WHERE id_estudio = %s
+            """,
+                (estudio_id,),
+            )
+            return cursor.fetchone()
+        except Error as e:
+            print(f"❌ Error al obtener estudio por id: {e}")
+            return None
+
+    def actualizar_estudio(self, estudio_id, datos):
+        # datos = (tipo_estudio, fecha_estudio, resultados)
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                UPDATE EstudioMedico
+                SET tipo_estudio=%s, fecha_estudio=%s, resultados=%s
+                WHERE id_estudio = %s
+            """,
+                (*datos, estudio_id),
+            )
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"❌ Error al actualizar estudio: {e}")
+            self.conn.rollback()
+            return False
+
+    def eliminar_estudio(self, estudio_id):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                "DELETE FROM EstudioMedico WHERE id_estudio = %s", (estudio_id,)
+            )
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"❌ Error al eliminar estudio: {e}")
+            self.conn.rollback()
+            return False
