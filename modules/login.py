@@ -1,16 +1,6 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
+import customtkinter as ctk
+from tkinter import messagebox
 from database.queries import LoginQueries
-
-
-def verificar_usuario(self, usuario, password):
-    query = """
-    SELECT u.nombre_usuario, r.nombre_rol, d.id_doctor
-    FROM Usuario u
-    JOIN Rol r ON u.id_rol = r.id_rol
-    LEFT JOIN Doctor d ON u.id_doctor = d.id_doctor
-    WHERE u.nombre_usuario = %s AND u.contrasena = SHA2(%s, 256)
-    """
 
 
 class LoginWindow:
@@ -19,18 +9,23 @@ class LoginWindow:
         self.on_login_success = on_login_success
         self.queries = None
 
+        # Configuración global de CustomTkinter
+        ctk.set_appearance_mode("light")  # "dark", "system"
+        ctk.set_default_color_theme("blue")
+
         self.root.title("Sistema de Consultorio Médico - Login")
-        self.root.geometry("400x300")
+        self.root.geometry("420x420")
         self.root.resizable(False, False)
         self.center_window()
 
-        # Configurar el protocolo de cierre
+        # Cierre correcto
         self.root.protocol("WM_DELETE_WINDOW", self.salir)
 
         self.create_widgets()
 
+    # -----------------------------------------------------
     def center_window(self):
-        """Centrar la ventana en la pantalla"""
+        """Centrar la ventana en pantalla."""
         self.root.update_idletasks()
         width = self.root.winfo_width()
         height = self.root.winfo_height()
@@ -38,96 +33,109 @@ class LoginWindow:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
+    # -----------------------------------------------------
     def set_connection(self, connection):
+        """Configura la conexión a la BD."""
         self.queries = LoginQueries(connection)
-        print("✅ Conexión configurada en Login")
+        print("✅ Conexión configurada en login")
 
+    # -----------------------------------------------------
     def create_widgets(self):
-        # Frame principal
-        main_frame = ttk.Frame(self.root, padding="30")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        """Interfaz visual con CustomTkinter."""
+
+        # Contenedor estilo "card"
+        main_frame = ctk.CTkFrame(self.root, corner_radius=15)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Título
-        title_label = ttk.Label(
-            main_frame, text="Consultorio Médico", font=("Arial", 16, "bold")
+        ctk.CTkLabel(
+            main_frame,
+            text="Consultorio Médico",
+            font=ctk.CTkFont(size=22, weight="bold"),
+        ).pack(pady=(25, 5))
+
+        # Subtítulo
+        ctk.CTkLabel(
+            main_frame,
+            text="Sistema de Gestión - Cardiología",
+            font=ctk.CTkFont(size=16),
+        ).pack(pady=(0, 20))
+
+        # -------------------------------
+        # Campo Usuario
+        ctk.CTkLabel(main_frame, text="Usuario:").pack(pady=(10, 0))
+
+        self.usuario_entry = ctk.CTkEntry(
+            main_frame, width=260, placeholder_text="Ingrese su usuario"
         )
-        title_label.pack(pady=10)
+        self.usuario_entry.pack(pady=5)
 
-        subtitle_label = ttk.Label(
-            main_frame, text="Sistema de Gestión - Cardiología", font=("Arial", 12)
+        # -------------------------------
+        # Campo Contraseña
+        ctk.CTkLabel(main_frame, text="Contraseña:").pack(pady=(10, 0))
+
+        self.password_entry = ctk.CTkEntry(
+            main_frame, width=260, placeholder_text="Ingrese su contraseña", show="*"
         )
-        subtitle_label.pack(pady=5)
+        self.password_entry.pack(pady=5)
 
-        # Frame de credenciales
-        cred_frame = ttk.LabelFrame(main_frame, text="Ingreso al Sistema", padding="15")
-        cred_frame.pack(fill=tk.BOTH, expand=True, pady=20)
+        # -------------------------------
+        # Botón ingresar
+        ctk.CTkButton(
+            main_frame,
+            text="Ingresar",
+            width=200,
+            command=self.verificar_login,
+        ).pack(pady=(25, 10))
 
-        ttk.Label(cred_frame, text="Usuario:").grid(
-            row=0, column=0, padx=5, pady=10, sticky="e"
-        )
-        self.usuario_entry = ttk.Entry(cred_frame, width=20)
-        self.usuario_entry.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
+        # Botón salir
+        ctk.CTkButton(
+            main_frame,
+            text="Salir",
+            width=200,
+            fg_color="#b12323",
+            hover_color="#8a1b1b",
+            command=self.salir,
+        ).pack()
 
-        ttk.Label(cred_frame, text="Contraseña:").grid(
-            row=1, column=0, padx=5, pady=10, sticky="e"
-        )
-        self.password_entry = ttk.Entry(cred_frame, show="*", width=20)
-        self.password_entry.grid(row=1, column=1, padx=5, pady=10, sticky="ew")
-
-        # Configurar el grid para que la columna 1 se expanda
-        cred_frame.columnconfigure(1, weight=1)
-
-        # Frame de botones
-        button_frame = ttk.Frame(cred_frame)
-        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
-
-        ttk.Button(button_frame, text="Ingresar", command=self.verificar_login).pack(
-            side=tk.LEFT, padx=10
-        )
-        ttk.Button(button_frame, text="Salir", command=self.salir).pack(
-            side=tk.LEFT, padx=10
-        )
-
-        # Bind Enter para facilitar el login
+        # ENTER para iniciar sesión
         self.root.bind("<Return>", lambda event: self.verificar_login())
 
-        # Focus en el campo de usuario
         self.usuario_entry.focus()
 
-        print("✅ Interfaz de login creada")
+        print("🎨 Login creado con CustomTkinter")
 
+    # -----------------------------------------------------
     def verificar_login(self):
+        """Valida usuario + contraseña con la base de datos."""
         if self.queries is None:
-            messagebox.showerror("Error", "No hay conexión a la base de datos")
+            messagebox.showerror("Error", "No hay conexión a la BD")
             return
 
         usuario = self.usuario_entry.get()
         password = self.password_entry.get()
 
         if not usuario or not password:
-            messagebox.showerror("Error", "Por favor ingrese usuario y contraseña")
+            messagebox.showerror("Error", "Debe completar los campos.")
             return
 
         try:
-            print(f"🔐 Verificando credenciales para: {usuario}")
+            print(f"🔐 Verificando credenciales ({usuario})...")
             resultado = self.queries.verificar_usuario(usuario, password)
+
             if resultado:
                 user_id, username, rol, nombre_completo = resultado
-                print(
-                    f"✅ Credenciales válidas. Rol: {rol}, Usuario: {nombre_completo}"
-                )
+                print(f"✔ Login correcto: {nombre_completo} ({rol})")
 
-                # Llamar al callback de éxito
                 self.on_login_success(user_id, username, rol, nombre_completo)
             else:
                 messagebox.showerror("Error", "Usuario o contraseña incorrectos")
-                print("❌ Credenciales inválidas")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al verificar credenciales: {str(e)}")
-            print(f"❌ Error en verificación: {e}")
 
+        except Exception as e:
+            messagebox.showerror("Error", f"Error en verificación:\n{str(e)}")
+            print("❌ Error:", e)
+
+    # -----------------------------------------------------
     def salir(self):
-        """Salir de la aplicación"""
-        print("👋 Saliendo del sistema...")
-        self.root.quit()
+        print("👋 Cerrando aplicación...")
         self.root.destroy()

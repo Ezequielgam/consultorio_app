@@ -1,0 +1,11 @@
+bcrypt
+
+mysql-connector-python>=8.0.0
+python-dotenv>=1.0.0
+pyinstaller>=5.0
+pillow>=9.0.0
+customtkinter
+mysql-connector-python
+pillow
+
+tkcalendar>=1.6.1

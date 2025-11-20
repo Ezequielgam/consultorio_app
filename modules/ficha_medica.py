@@ -3,10 +3,6 @@ from tkinter import ttk, messagebox
 from datetime import datetime, date
 from database.queries import FichaMedicaQueries
 
-# Nota: requiere que en database/queries.py importes/definas las clases:
-# ConsultaMedicaQueries, RecetaMedicaQueries, EstudioMedicoQueries
-# (abajo te doy el archivo de queries si prefieres agregarlo separado)
-
 
 class FichaMedicaModule:
     def __init__(self, parent, connection):
